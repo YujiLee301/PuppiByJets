@@ -217,7 +217,10 @@ def test(filelists, models={}):
     chpu_weight = []
     chlv_puppiweight = []
     chpu_puppiweight = []
-
+    mass_diff_CHS = [] 
+    mass_diff_puppi = [] 
+    mass_diff_puppi_wcut = [] 
+    mass_diff_pred = []
     ievt = 0
     for ifile in filelists:
         print("ifile: ", ifile)
@@ -251,7 +254,7 @@ def test(filelists, models={}):
                     # print("pred here: ", pred)
                     preds.append(pred)
 
-                mass_diff_CHS, mass_diff_puppi, mass_diff_puppi_wcut, mass_diff_pred, neus_pred, neus_puppi, chlvs_pred, chpus_pred, chlvs_puppi, chpus_puppi = postProcessing(
+                mass_diff_CHS_, mass_diff_puppi_, mass_diff_puppi_wcut_, mass_diff_pred_, neus_pred, neus_puppi, chlvs_pred, chpus_pred, chlvs_puppi, chpus_puppi = postProcessing(
                     data, preds)
                
                 for m0 in range(len(neus_pred)):
@@ -266,6 +269,11 @@ def test(filelists, models={}):
                     chlv_puppiweight.append(chlvs_puppi[m4])
                 for m5 in range(len(chpus_puppi)):
                     chpu_puppiweight.append(chpus_puppi[m5])
+                
+                mass_diff_CHS.append(mass_diff_CHS_)
+                mass_diff_puppi.append(mass_diff_puppi_)
+                mass_diff_puppi_wcut.append(mass_diff_puppi_wcut_)
+                mass_diff_pred.append(mass_diff_pred_)
                 
         print("eventNum:"+str(ievt))
 
@@ -304,16 +312,16 @@ def main(modelname, filelists):
    #  %matplotlib inline
     plt.style.use(hep.style.ROOT)
     fig = plt.figure(figsize=(10, 8))
-    mass_diff = mass_diff_pred
+    mass_diff = np.array(mass_diff_pred)
     plt.hist(mass_diff, bins=40, range=(-1, 1), histtype='step', color='blue', linewidth=linewidth,
              density=True, label=r'Semi-supervised, $\mu={:10.2f}$, $\sigma={:10.2f}$, counts:'.format(*(getStat(mass_diff)))+str(len(mass_diff)))
-    mass_diff = mass_diff_puppi
+    mass_diff = np.array(mass_diff_puppi)
     plt.hist(mass_diff, bins=40, range=(-1, 1), histtype='step', color='green', linewidth=linewidth, 
              density=True, label=r'PUPPI, $\mu={:10.2f}$, $\sigma={:10.2f}$, counts:'.format(*(getStat(mass_diff)))+str(len(mass_diff)))
-    mass_diff = mass_diff_puppi_wcut
+    mass_diff = np.array(mass_diff_puppi_wcut)
     plt.hist(mass_diff, bins=40, range=(-1, 1), histtype='step', color='red', linewidth=linewidth, 
              density=True, label=r'PF, $\mu={:10.2f}$, $\sigma={:10.2f}$, counts:'.format(*(getStat(mass_diff)))+str(len(mass_diff)))
-    mass_diff = mass_diff_CHS
+    mass_diff = np.array(mass_diff_CHS)
     plt.hist(mass_diff, bins=40, range=(-1, 1), histtype='step', color='orange', linewidth=linewidth, 
              density=True, label=r'CHS, $\mu={:10.2f}$, $\sigma={:10.2f}$, counts:'.format(*(getStat(mass_diff)))+str(len(mass_diff)))
     # plt.xlim(-1.0,1.3)

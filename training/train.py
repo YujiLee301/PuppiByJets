@@ -59,7 +59,7 @@ def arg_parse():
                         weight_decay=0,
                         lr=0.001,
                         pulevel=80,
-                        training_path="../data_pickle/dataset_graph_puppi_20000",
+                        training_path="../data_pickle/dataset_graph_puppi_8000",
                         validation_path="../data_pickle/dataset_graph_puppi_val_4000",
                         save_dir="test",
                         )
@@ -121,28 +121,16 @@ def train(dataset, dataset_validation, args, batchsize):
     epochs_valid = []
     loss_graph = []
     loss_graph_train = []
-    loss_graph_train_hybrid = []
     loss_graph_valid = []
-    train_fig_names = []
-    valid_fig_names = []
 
     train_graph_SSLMassdiffMu = []
     train_graph_PUPPIMassdiffMu = []
     train_graph_SSLMassSigma = []
     train_graph_PUPPIMassSigma = []
-    train_graph_SSLPtdiffMu = []
-    train_graph_SSLPtSigma = []
-    train_graph_PUPPIPtdiffMu = []
-    train_graph_PUPPIPtSigma = []
-
     valid_graph_SSLMassdiffMu = []
     valid_graph_PUPPIMassdiffMu = []
     valid_graph_SSLMassSigma = []
     valid_graph_PUPPIMassSigma = []
-    valid_graph_SSLPtdiffMu = []
-    valid_graph_SSLPtSigma = []
-    valid_graph_PUPPIPtdiffMu = []
-    valid_graph_PUPPIPtSigma = []
 
     count_event = 0
     converge = False
@@ -176,7 +164,7 @@ def train(dataset, dataset_validation, args, batchsize):
             t.set_postfix(loss='{:05.3f}'.format(loss_avg()))
             t.update()
 
-            if count_event % 1000 == 0:
+            if count_event % 500 == 0:
 
                 modelcolls = OrderedDict()
                 modelcolls['gated_boost'] = model
@@ -205,13 +193,13 @@ def train(dataset, dataset_validation, args, batchsize):
                 if (valid_SSLMassSigma/(1-abs(valid_SSLMassdiffMu))) < (best_validation_SSLMassSigma/(1-abs(best_valid_SSLMassdiffMu))):
                     best_validation_SSLMassSigma = valid_SSLMassSigma 
                     best_valid_SSLMassdiffMu = valid_SSLMassdiffMu 
-                    print("model is saved in " + path + "/best_valid_model_nPU11_deeper_Zjets.pt")
+                    print("model is saved in " + path + "/best_valid_model_Zjets.pt")
                     if isinstance(model, torch.nn.DataParallel):
                        model_state_dict = model.module.state_dict()
                     else:
                        model_state_dict = model.state_dict()
                     torch.save(model_state_dict, path +
-                               "/best_valid_model_nPU11_deeper_Zjets.pt")
+                               "/best_valid_model_Zjets.pt")
 
                 if valid_loss >= lowest_valid_loss:
                     print(
@@ -264,17 +252,6 @@ def train(dataset, dataset_validation, args, batchsize):
     plt.close()
 
     plt.figure()
-    plt.plot(epochs_valid, train_graph_SSLPtdiffMu, label = 'Semi-supervised_train_JetPt, $\mu$', linestyle = 'solid', linewidth = 1, color = 'g')
-    plt.plot(epochs_valid, valid_graph_SSLPtdiffMu, label = 'Semi-supervised_valid_JetPt, $\mu$', linestyle = 'solid', linewidth = 1, color = 'b')
-    plt.plot(epochs_valid, train_graph_PUPPIPtdiffMu, label = 'PUPPI_train_JetPt, $\mu$', linestyle = 'solid', linewidth = 1, color = 'r')
-    #plt.plot(epochs_valid, valid_graph_PUPPIPtdiffMu, label = 'PUPPI_valid_JetPt, $\mu$', linestyle = 'solid', linewidth = 1, color = 'o')
-    plt.xlabel('Epochs')
-    plt.ylabel('mean diff')
-    plt.legend(loc=4)
-    plt.savefig(args.save_dir + "/Jet_pt_diff_mean.pdf")
-    plt.close()
-
-    plt.figure()
     plt.plot(epochs_valid, train_graph_SSLMassSigma, label = 'Semi-supervised_train_JetMass, $\sigma$', linestyle = 'solid', linewidth = 1, color = 'g')
     plt.plot(epochs_valid, valid_graph_SSLMassSigma, label = 'Semi-supervised_valid_JetMass, $\sigma$', linestyle = 'solid', linewidth = 1, color = 'b')
     plt.plot(epochs_valid, train_graph_PUPPIMassSigma, label = 'PUPPI_train_JetMass, $\sigma$', linestyle = 'solid', linewidth = 1, color = 'r')
@@ -285,16 +262,6 @@ def train(dataset, dataset_validation, args, batchsize):
     plt.savefig(args.save_dir + "/Jet_mass_diff_sigma.pdf")
     plt.close()
 
-    plt.figure()
-    plt.plot(epochs_valid, train_graph_SSLPtSigma, label = 'Semi-supervised_train_JetPt, $\sigma$', linestyle = 'solid', linewidth = 1, color = 'g')
-    plt.plot(epochs_valid, valid_graph_SSLPtSigma, label = 'Semi-supervised_valid_JetPt, $\sigma$', linestyle = 'solid', linewidth = 1, color = 'b')
-    plt.plot(epochs_valid, train_graph_PUPPIPtSigma, label = 'PUPPI_train_JetPt, $\sigma$', linestyle = 'solid', linewidth = 1, color = 'r')
-    #plt.plot(epochs_valid, valid_graph_PUPPIPtSigma, label = 'PUPPI_valid_JetPt, $\sigma$', linestyle = 'solid', linewidth = 1, color = 'o')
-    plt.xlabel('Epochs')
-    plt.ylabel('sigma diff')
-    plt.legend(loc=4)
-    plt.savefig(args.save_dir + "/Jet_pt_diff_sigma.pdf")
-    plt.close()
 
   
 

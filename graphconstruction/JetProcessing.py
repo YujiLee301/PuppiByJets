@@ -15,7 +15,7 @@ from scipy.spatial import distance
 
 np.random.seed(0)
 ifAK8=1
-def clusterJets(pt, eta, phi, ifAK8, ptcut=0., deltaR=0.4):
+def clusterJets(pt, eta, phi, ifAK8=1, ptcut=0., deltaR=0.4):
     """
     cluster the jets based on the array of pt, eta, phi,
     of all particles (masses are assumed to be zero),
@@ -34,7 +34,7 @@ def clusterJets(pt, eta, phi, ifAK8, ptcut=0., deltaR=0.4):
     sequence = cluster(event, R=deltaR, p=-1)
     Ptmin = 30
     if ifAK8:
-        Ptmin = 300
+        Ptmin = 100
     jets = sequence.inclusive_jets(ptmin=Ptmin)
     #charged only
     #jets = sequence.inclusive_jets(ptmin=20)
@@ -91,23 +91,29 @@ def matchJets(jets_truth, jets_reco, dRcut=0.1):
     return matched_indices
 
 def Part_in_jet(pt, eta, phi, jet):
-    part_in_jet = False
+    part_in_jet = 0
     constituents = jet.constituents_array()
     for constit in constituents:
         if((abs(pt-constit[0])<0.001)&(abs(eta-constit[1])<0.001)&(abs(phi-constit[2])<0.001)):
-            part_in_jet = True
-            break
+            part_in_jet = 1
+            return part_in_jet
+
     return part_in_jet
+    
 
 def get_jetidx(pt, eta, phi, jets):
     jetidx = []
     for i in range(len(pt)):
+        if(len(jets)==0):
+            jetidx.append(-1)
+            continue
         for j in range(len(jets)):
-            if(Part_in_jet(pt[i], eta[i], phi[i], jets[j])):
-                jetidx.append(j)
+            PartJetFlag = Part_in_jet(pt[i], eta[i], phi[i], jets[j])
+            Jetidx_ = -1
+            if PartJetFlag>0:
+                Jetidx_ = j
                 break
-            else:
-                jetidx.append(-1)
+        jetidx.append(Jetidx_)
     
     return jetidx
 
@@ -138,6 +144,8 @@ def gen_dataframe(rfilename, num_event, num_start=0):
     # no need to convert to dataframe for each event
     #
     for i in range(num_event):
+        if i % 10 == 0:
+            print(f"processed {i} events")
         event = pfcands[i]
         selected_features = ['PF_eta', 'PF_phi', 'PF_pt',
                              'PF_pdgId', 'PF_charge', 'PF_puppiWeight', 'PF_puppiWeightChg', 'PF_dz',
@@ -146,6 +154,8 @@ def gen_dataframe(rfilename, num_event, num_start=0):
         pf_chosen = event[selected_features]
         df_pfcands = ak.to_dataframe(pf_chosen)
         df_pfcands = df_pfcands[abs(df_pfcands['PF_eta']) < 2.5]
+        df_pfcands = df_pfcands[df_pfcands['PF_pt'] > 0.5]
+        df_pfcands.index = range(len(df_pfcands))
         # df_pfcands['PF_pt'] = np.log(df_pfcands['PF_pt'])
 
         df_pf_list.append(df_pfcands)
@@ -159,17 +169,22 @@ def gen_dataframe(rfilename, num_event, num_start=0):
         selection = (abs(df_genparts['packedGenPart_eta']) < 2.5) & (abs(df_genparts['packedGenPart_pdgId']) != 12) & (
             abs(df_genparts['packedGenPart_pdgId']) != 14) & (abs(df_genparts['packedGenPart_pdgId']) != 16)
         df_genparts = df_genparts[selection]
+        df_genparts.index = range(len(df_genparts))
         df_gen_list.append(df_genparts)
 
         jets = clusterJets(df_pfcands['PF_pt'], df_pfcands['PF_eta'], df_pfcands['PF_phi'])
         jets_truth = clusterJets(df_genparts['packedGenPart_pt'], df_genparts['packedGenPart_eta'], df_genparts['packedGenPart_phi'])
         matched_indices = matchJets(jets_truth, jets)
+        if i==0: print(matched_indices)
         jets_matched = []
         jets_truth_matched = []
         for matchidx in matched_indices:
             jets_matched.append(jets[matchidx[1]])
-            jets_truth_matched.append(jets_truth_matched[matchidx[0]])
+            jets_truth_matched.append(jets_truth[matchidx[0]])
+        if i==0: print(jets_matched)
+        #print(df_pfcands['PF_pt'])
         pf_jetindices = get_jetidx(df_pfcands['PF_pt'], df_pfcands['PF_eta'], df_pfcands['PF_phi'], jets_matched)
+        if i==0: print(pf_jetindices)
         gen_jetindices = get_jetidx(df_genparts['packedGenPart_pt'], df_genparts['packedGenPart_eta'], df_genparts['packedGenPart_phi'], jets_truth_matched)
         njets_matched = len(jets_matched)
         pf_jetindices_list.append(pf_jetindices)
@@ -205,16 +220,20 @@ def prepare_dataset(rfilename, num_event, num_start=0):
         #
         df_pfcands_all = df_pf_list[num]
         df_gencands_all = df_gen_list[num]
-        for ijet in njets_matched_list[num]:
-            df_pfcands = []
-            df_gencands = []
+        if njets_matched_list[num] == 0: continue
+        for ijet in range(0, njets_matched_list[num]):
+            df_pfcandsidx = []
+            df_gencandsidx = []
             for kp in range(len(pf_jetindices_list[num])):
-                if df_pfcands_all[kp] == ijet:
-                    df_pfcands.append(df_pfcands_all[kp])
+                #print(pf_jetindices_list[num][kp])
+                if (pf_jetindices_list[num][kp] == ijet):
+                    df_pfcandsidx.append(kp)
             for kg in range(len(gen_jetindices_list[num])):
-                if df_gencands_all[kg] == ijet:
-                    df_gencands.append(df_gencands_all[kg])
-                    
+                if gen_jetindices_list[num][kg] == ijet:
+                    df_gencandsidx.append(kg)
+            df_pfcands = df_pfcands_all.loc[df_pfcandsidx]
+            df_gencands = df_gencands_all.loc[df_gencandsidx]
+            
             # fromPV > 2 or < 1 is a really strict cut
             LV_index = np.where((df_pfcands['PF_puppiWeight'] > 0.99) & (df_pfcands['PF_charge'] != 0) & (
                 df_pfcands['PF_pt'] > PTCUT) & (df_pfcands['PF_fromPV'] > 2))[0]
@@ -222,8 +241,8 @@ def prepare_dataset(rfilename, num_event, num_start=0):
                 df_pfcands['PF_pt'] > PTCUT) & (df_pfcands['PF_fromPV'] < 1))[0]
             # print("LV index", LV_index)
             # print("PU index", PU_index)
-            if LV_index.shape[0] < 5 or PU_index.shape[0] < 50:
-                continue
+            #if LV_index.shape[0] < 5 or PU_index.shape[0] < 50:
+                #continue
             Neutral_index = np.where(df_pfcands['PF_charge'] == 0)[0]
             Charge_index = np.where(df_pfcands['PF_charge'] != 0)[0]
 
@@ -254,6 +273,7 @@ def prepare_dataset(rfilename, num_event, num_start=0):
             # print(pdgId)
             pdgId_one_hot = torch.nn.functional.one_hot(pdgId)
             pdgId_one_hot = pdgId_one_hot.type(torch.float32)
+            if pdgId_one_hot.shape[1] != 3: continue
             assert pdgId_one_hot.shape[1] == 3, "pdgId_one_hot.shape[1] != 3"
             # print ("pdgID_one_hot", pdgId_one_hot)
             # set the neutral puppiWeight to default
@@ -268,11 +288,10 @@ def prepare_dataset(rfilename, num_event, num_start=0):
             puppiWeight_one_hot = puppiWeight_one_hot.type(torch.float32)
             # columnsNamesArr = df_pfcands.columns.values
             node_features = torch.cat(
-                (node_features[:, 0:3], pdgId_one_hot, puppiWeight_one_hot), 1)
+                (node_features[:, 0:5], pdgId_one_hot, puppiWeight_one_hot), 1)
             #    (node_features[:, 0:3], pdgId_one_hot, node_features[:, -1:], puppiWeight_one_hot), 1)
             # i(node_features[:, 0:3], pdgId_one_hot,node_features[:,5:6], puppiWeight_one_hot), 1)
             # (node_features[:, 0:4], pdgId_one_hot, puppiWeight_one_hot), 1)
-
             if num == 0:
                 print("pdgId dimensions: ", pdgId_one_hot.shape)
                 print("puppi weights dimensions: ", puppiWeight_one_hot.shape)
@@ -336,20 +355,20 @@ def main():
     start = timer()
 
     iname = "Wjets_output_10.root"
-    num_events_train = 20000
+    num_events_train = 3000
     oname = "../data_pickle/dataset_graph_puppi_WjetsDR8" + str(num_events_train)
     dataset_train = prepare_dataset(iname, num_events_train)
     # save outputs in pickle format
     with open(oname, "wb") as fp:
         pickle.dump(dataset_train, fp)
 
-    num_events_test = 4000
+    num_events_test = 1000
     oname = "../data_pickle/dataset_graph_puppi_test_WjetsDR8" + str(num_events_test)
     dataset_test = prepare_dataset(iname, num_events_test, num_events_train)
     with open(oname, "wb") as fp:
         pickle.dump(dataset_test, fp)
 
-    num_events_valid = 4000
+    num_events_valid = 1000
     oname = "../data_pickle/dataset_graph_puppi_val_WjetsDR8" + str(num_events_valid)
     dataset_valid = prepare_dataset(
         iname, num_events_valid, num_events_train + num_events_test)

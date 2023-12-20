@@ -52,10 +52,10 @@ def GetJetInvMass(pt, eta, phi):
     Pz = 0
     Energy = 0
     for i in range(len(pt)):
-        px, py, px, ene = SetPxPyPzE(pt[i], eta[i], phi[i])
+        px, py, pz, ene = SetPxPyPzE(pt[i], eta[i], phi[i])
         Px+=px
         Py+=py
-        Pz+=Pz
+        Pz+=pz
         Energy+=ene
     
     return math.sqrt(Energy*Energy-Px*Px-Py*Py-Pz*Pz)
@@ -162,7 +162,7 @@ def postProcessing(data, preds):
     chlv_puppi = []
     chpu_puppi = []
 
-    for pred in preds:
+    """for pred in preds:
         # print("preds: ", pred)
         pred = np.array(pred[0][:, 0].cpu().detach())
         #pred[pred<0.3] = 0
@@ -192,17 +192,17 @@ def postProcessing(data, preds):
         # charge_index = data.Charge_index[0]
         #pred[charge_index] = puppichg[charge_index]
         if testneu == 1:
-            predcopyA[charge_index] = puppi[charge_index]
+           predcopyA[charge_index] = puppi[charge_index]
         
-        pt_pred = pt * predcopyA
-        Jet_mass_pred = GetJetInvMass(pt_pred, eta, phi)
+        Jet_mass_pred = GetJetInvMass(pt * predcopyA, eta, phi)
 
-        mass_diff_pred = (Jet_mass_pred - JetmassTruth)/JetmassTruth
-      
+        mass_diff_pred = (Jet_mass_pred - JetmassTruth)/JetmassTruth"""
+    
+    mass_diff_pred = (preds[0][0] - JetmassTruth) / JetmassTruth
     
     
 
-    return mass_diff_CHS, mass_diff_puppi, mass_diff_puppi_wcut, mass_diff_pred, neu_pred, neu_puppi, chlv_pred, chpu_pred, chlv_puppi, chpu_puppi
+    return mass_diff_CHS, mass_diff_puppi, mass_diff_puppi_wcut, mass_diff_pred.cpu().item(), neu_pred, neu_puppi, chlv_pred, chpu_pred, chlv_puppi, chpu_puppi
 
 
 def test(filelists, models={}):
@@ -242,14 +242,13 @@ def test(filelists, models={}):
             with torch.no_grad():
                 data = data.to(device)
                 # max(dim=1) returns values, indices tuple; only need indices
-
+                
                 # loop over model in models and run the inference
                 preds = []
 
                 for model in models.values():
                     model.to('cuda:0')
                     model.eval()
-
                     pred = model.forward(data)
                     # print("pred here: ", pred)
                     preds.append(pred)
@@ -341,7 +340,6 @@ def main(modelname, filelists):
     chpu_weight_total = np.array(chpu_weight)
     chlv_puweight_total = np.array(chlv_puppiweight)
     chpu_puweight_total = np.array(chpu_puppiweight)
-    print(chlv_weight_total[:100])
     neutral_weight_total = np.array(neu_weight)
     plt.hist(neutral_weight_total, bins=40, range=(0, 1), histtype='step', color='blue', linewidth=linewidth,
               density=True, label=r'Neutral particle weight')
